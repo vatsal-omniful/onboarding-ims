@@ -32,7 +32,7 @@ func (service *ProductService) CheckValidityOfProductHub(
 		return errors.New("invalid seller_id")
 	}
 
-	if product.TenantId != hub.TenantId || product.TenantId != fmt.Sprint(tenantId) {
+	if product.TenantId != hub.TenantId || product.TenantId != tenantId {
 		return errors.New(
 			"product and hub must belong to the same tenant or the product must belong to the specified tenant",
 		)
