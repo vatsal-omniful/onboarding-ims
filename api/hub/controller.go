@@ -13,7 +13,7 @@ type HubController struct {
 }
 
 func (c *HubController) validateHub(hub *models.Hub) error {
-	if hub.TenantId == "" {
+	if hub.TenantId == 0 {
 		return errors.New("tenantId is required")
 	}
 	if hub.Name == "" {
@@ -37,7 +37,7 @@ func (c *HubController) CreateHub(ctx *gin.Context) {
 		return
 	}
 
-	if err := c.rep.CreateHub(&hub); err != nil {
+	if err := c.rep.CreateHubRepo(&hub); err != nil {
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
@@ -49,16 +49,16 @@ type TenantId struct {
 	TenantId string `json:"tenant_id" bson:"tenant_id" bind:"required"`
 }
 
-func (c *HubController) validateGetHubRequest(ctx *gin.Context) (string, string, error) {
+func (c *HubController) validateGetHubRequest(ctx *gin.Context) (string, uint, error) {
 	hubId := ctx.Param("id")
 	if hubId == "" {
-		return "", "", errors.New("hub ID is required")
+		return "", 0, errors.New("hub ID is required")
 	}
 	tenantId, exists := ctx.Get("tenantId")
 	if !exists || tenantId == "" {
-		return "", "", errors.New("tenant ID is required")
+		return "", 0, errors.New("tenant ID is required")
 	}
-	return hubId, tenantId.(string), nil
+	return hubId, tenantId.(uint), nil
 }
 
 func (c *HubController) GetHub(ctx *gin.Context) {

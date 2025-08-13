@@ -4,6 +4,8 @@ import (
 	"errors"
 	"math/rand"
 	"net/http"
+
+	"github.com/vatsal-omniful/onboarding-ims/models"
 )
 
 type ProductService struct {
@@ -68,4 +70,40 @@ func (service *ProductService) FulfillOrderRequest(orderRequest *OrderRequest) (
 		return http.StatusInternalServerError, errors.New("failed to fulfill order request")
 	}
 	return http.StatusOK, nil
+}
+
+func (service *ProductService) GetProducts(
+	filters map[string]interface{},
+) ([]*models.Product, error) {
+	var products []*models.Product
+	var err error
+
+	if len(filters) == 0 {
+		products, err = service.repo.GetAllProducts()
+	} else {
+		products, err = service.repo.GetProductsByFilters(filters)
+	}
+
+	if err != nil {
+		return nil, err
+	}
+	return products, nil
+}
+
+func (service *ProductService) GetInventory(tenantId uint) ([]*map[string]interface{}, error) {
+	inventory, err := service.repo.GetInventory(tenantId)
+	if err != nil {
+		return nil, err
+	}
+
+	var result []*map[string]any
+	for _, item := range inventory {
+		result = append(result, &map[string]any{
+			"product_sku_id": item["sku_id"],
+			"hub_id":         item["hub_id"],
+			"quantity":       item["quantity"],
+			"seller_name":    item["seller_name"],
+		})
+	}
+	return result, nil
 }

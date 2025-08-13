@@ -138,3 +138,45 @@ func (ctrl *ProductController) FulfillOrderRequest(ctx *gin.Context) {
 	}
 	ctx.JSON(statusCode, gin.H{"message": "Order fulfilled successfully"})
 }
+
+func (ctrl *ProductController) GetProducts(ctx *gin.Context) {
+	tenantId := ctx.Query("tenant_id")
+	sellerId := ctx.Query("seller_id")
+	sku_codes := ctx.QueryArray("sku_codes")
+
+	filter := make(map[string]any)
+	if tenantId != "" {
+		filter["tenant_id"] = tenantId
+	}
+	if sellerId != "" {
+		filter["seller_id"] = sellerId
+	}
+	if len(sku_codes) > 0 {
+		filter["sku_id"] = sku_codes
+	}
+	products, err := ctrl.ser.GetProducts(filter)
+	if err != nil {
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to retrieve products"})
+		return
+	}
+	if len(products) == 0 {
+		ctx.JSON(http.StatusNotFound, gin.H{"message": "No products found"})
+		return
+	}
+	ctx.JSON(http.StatusOK, products)
+}
+
+func (ctrl *ProductController) GetInventory(ctx *gin.Context) {
+	tenantId, _ := ctx.Get("tenantId")
+
+	inventory, err := ctrl.ser.GetInventory(tenantId.(uint))
+	if err != nil {
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to retrieve inventory"})
+		return
+	}
+	if len(inventory) == 0 {
+		ctx.JSON(http.StatusNotFound, gin.H{"message": "No inventory found"})
+		return
+	}
+	ctx.JSON(http.StatusOK, inventory)
+}

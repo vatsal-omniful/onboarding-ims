@@ -117,3 +117,46 @@ func (repo *ProductRepository) UpdateProductHubQuantity(productId, hubId, quanti
 		Where("product_id = ? AND hub_id = ? AND quantity >= ?", productId, hubId, quantity).
 		UpdateColumn("quantity", gorm.Expr("quantity - ?", quantity)).Error
 }
+
+func (repo *ProductRepository) GetAllProducts() ([]*models.Product, error) {
+	var products []*models.Product
+	if err := database.DB.Find(&products).Error; err != nil {
+		return nil, err
+	}
+	return products, nil
+}
+
+func (repo *ProductRepository) GetProductsByFilters(
+	filters map[string]interface{},
+) ([]*models.Product, error) {
+	var products []*models.Product
+	query := database.DB.Model(&models.Product{})
+
+	for key, value := range filters {
+		if key != "sku_id" {
+			query = query.Where(key+" = ?", value)
+		} else {
+			query = query.Where("sku_id IN ?", value)
+		}
+	}
+
+	if err := query.Find(&products).Error; err != nil {
+		return nil, err
+	}
+	return products, nil
+}
+
+func (repo *ProductRepository) GetInventory(tenantId uint) ([]map[string]any, error) {
+	var inventory []map[string]any
+	err := database.DB.Table("product_hubs").
+		Joins("JOIN products ON product_hubs.product_id = products.id").
+		Joins("JOIN hubs ON product_hubs.hub_id = hubs.id").
+		Joins("JOIN sellers ON product_hubs.seller_id = sellers.id").
+		Select("products.sku_id as sku_id, hubs.id AS hub_id, hubs.name AS hub_name, product_hubs.quantity, sellers.name AS seller_name").
+		Where("products.tenant_id = ? and hubs.tenant_id = ?", tenantId, tenantId).
+		Scan(&inventory).Error
+	if err != nil {
+		return nil, err
+	}
+	return inventory, nil
+}

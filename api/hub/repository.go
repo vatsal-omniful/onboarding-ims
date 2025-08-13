@@ -7,7 +7,7 @@ import (
 
 type HubRepository struct{}
 
-func (rep *HubRepository) CreateHub(hub *models.Hub) error {
+func (rep *HubRepository) CreateHubRepo(hub *models.Hub) error {
 	return database.DB.Create(hub).Error
 }
 
