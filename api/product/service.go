@@ -2,7 +2,6 @@ package product
 
 import (
 	"errors"
-	"fmt"
 	"math/rand"
 	"net/http"
 )
