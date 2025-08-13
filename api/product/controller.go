@@ -69,3 +69,72 @@ func (ctrl *ProductController) GetProduct(ctx *gin.Context) {
 	}
 	ctx.JSON(http.StatusOK, product)
 }
+
+type ProductInflow struct {
+	ProductId uint `json:"product_id"         binding:"required"`
+	HubId     uint `json:"hub_id"             binding:"required"`
+	SellerId  uint `json:"seller_id"          binding:"required"`
+	Quantity  uint `json:"quantity_available" binding:"required"`
+}
+
+func (ctrl *ProductController) InflowProduct(ctx *gin.Context) {
+	var inflow ProductInflow
+	if err := ctx.ShouldBindJSON(&inflow); err != nil {
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": "Invalid inflow data"})
+		return
+	}
+
+	if inflow.Quantity <= 0 {
+		ctx.JSON(
+			http.StatusBadRequest,
+			gin.H{"error": "Quantity available can never be 0 for an inflow."},
+		)
+		return
+	}
+
+	tenantId, _ := ctx.Get("tenantId")
+
+	requestValidationErr := ctrl.ser.CheckValidityOfProductHub(
+		inflow.ProductId,
+		inflow.HubId,
+		inflow.SellerId,
+		tenantId.(uint),
+	)
+
+	if requestValidationErr != nil {
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": requestValidationErr.Error()})
+		return
+	}
+
+	if statusCode, err := ctrl.repo.UpsertProductInflow(&inflow); statusCode != http.StatusOK {
+		ctx.JSON(statusCode, gin.H{"error": err.Error()})
+		return
+	}
+
+	ctx.JSON(http.StatusOK, gin.H{"message": "Product inflow processed successfully"})
+}
+
+type OrderRequest struct {
+	ProductId uint `json:"product_id" binding:"required"`
+	Quantity  uint `json:"quantity"   binding:"required"`
+}
+
+func (ctrl *ProductController) FulfillOrderRequest(ctx *gin.Context) {
+	var order OrderRequest
+	if err := ctx.ShouldBindJSON(&order); err != nil {
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": "invalid order request"})
+		return
+	}
+
+	if order.Quantity <= 0 {
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": "Quantity must be greater than 0"})
+		return
+	}
+
+	statusCode, err := ctrl.ser.FulfillOrderRequest(&order)
+	if err != nil {
+		ctx.JSON(statusCode, gin.H{"error": err.Error()})
+		return
+	}
+	ctx.JSON(statusCode, gin.H{"message": "Order fulfilled successfully"})
+}

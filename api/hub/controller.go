@@ -54,7 +54,7 @@ func (c *HubController) validateGetHubRequest(ctx *gin.Context) (string, string,
 	if hubId == "" {
 		return "", "", errors.New("hub ID is required")
 	}
-	tenantId, exists := ctx.Get("tenant_id")
+	tenantId, exists := ctx.Get("tenantId")
 	if !exists || tenantId == "" {
 		return "", "", errors.New("tenant ID is required")
 	}

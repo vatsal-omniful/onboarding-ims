@@ -23,7 +23,7 @@ func TenantIDMiddleware() gin.HandlerFunc {
 			ctx.Abort()
 			return
 		}
-		ctx.Set("tenant_id", tenantId.TenantId)
+		ctx.Set("tenantId", tenantId.TenantId)
 		ctx.Next()
 	}
 }
