@@ -4,7 +4,9 @@ import (
 	"errors"
 	"math/rand"
 	"net/http"
+	"sync"
 
+	"github.com/gin-gonic/gin"
 	"github.com/vatsal-omniful/onboarding-ims/models"
 )
 
@@ -12,24 +14,36 @@ type ProductService struct {
 	repo *ProductRepository
 }
 
+var (
+	serOnce sync.Once
+	ser     *ProductService
+)
+
+func NewProductService(repo *ProductRepository) *ProductService {
+	serOnce.Do(func() {
+		ser = &ProductService{repo: repo}
+	})
+	return ser
+}
+
 func (service *ProductService) CheckValidityOfProductHub(
-	productId, hubId, sellerId, tenantId uint,
+	ctx *gin.Context, productId, hubId, sellerId, tenantId uint,
 ) error {
 	if productId == 0 || hubId == 0 || sellerId == 0 {
 		return errors.New("product_id, hub_id, and seller_id must be greater than 0")
 	}
 
-	product, err := service.repo.GetProductById(productId)
+	product, err := service.repo.GetProductById(ctx, productId)
 	if err != nil {
 		return errors.New("invalid product_id")
 	}
 
-	hub, err := service.repo.GetHubById(hubId)
+	hub, err := service.repo.GetHubById(ctx, hubId)
 	if err != nil {
 		return errors.New("invalid hub_id")
 	}
 
-	if _, err := service.repo.GetSellerById(sellerId); err != nil {
+	if _, err := service.repo.GetSellerById(ctx, sellerId); err != nil {
 		return errors.New("invalid seller_id")
 	}
 
@@ -46,17 +60,20 @@ func (service *ProductService) selectValidHubsForProduct(hubs []uint) uint {
 	return hubs[rand.Intn(len(hubs))]
 }
 
-func (service *ProductService) FulfillOrderRequest(orderRequest *OrderRequest) (int, error) {
+func (service *ProductService) FulfillOrderRequest(
+	ctx *gin.Context,
+	orderRequest *OrderRequest,
+) (int, error) {
 	if orderRequest.Quantity <= 0 {
 		return http.StatusBadRequest, errors.New("quantity must be greater than 0")
 	}
 
-	product, err := service.repo.GetProductById(orderRequest.ProductId)
+	product, err := service.repo.GetProductById(ctx, orderRequest.ProductId)
 	if err != nil {
 		return http.StatusBadRequest, errors.New("invalid product_id")
 	}
 
-	validHubs, err := service.repo.GetValidHubsForProduct(product.ID, orderRequest.Quantity)
+	validHubs, err := service.repo.GetValidHubsForProduct(ctx, product.ID, orderRequest.Quantity)
 	if len(validHubs) == 0 || err != nil {
 		return http.StatusConflict, errors.New("no valid hubs available")
 	}
@@ -64,7 +81,7 @@ func (service *ProductService) FulfillOrderRequest(orderRequest *OrderRequest) (
 	selectedHubId := service.selectValidHubsForProduct(validHubs)
 
 	updateProductHubError := service.repo.UpdateProductHubQuantity(
-		orderRequest.ProductId, selectedHubId, orderRequest.Quantity,
+		ctx, orderRequest.ProductId, selectedHubId, orderRequest.Quantity,
 	)
 	if updateProductHubError != nil {
 		return http.StatusInternalServerError, errors.New("failed to fulfill order request")
@@ -73,15 +90,16 @@ func (service *ProductService) FulfillOrderRequest(orderRequest *OrderRequest) (
 }
 
 func (service *ProductService) GetProducts(
+	ctx *gin.Context,
 	filters map[string]interface{},
 ) ([]*models.Product, error) {
 	var products []*models.Product
 	var err error
 
 	if len(filters) == 0 {
-		products, err = service.repo.GetAllProducts()
+		products, err = service.repo.GetAllProducts(ctx)
 	} else {
-		products, err = service.repo.GetProductsByFilters(filters)
+		products, err = service.repo.GetProductsByFilters(ctx, filters)
 	}
 
 	if err != nil {
@@ -90,8 +108,11 @@ func (service *ProductService) GetProducts(
 	return products, nil
 }
 
-func (service *ProductService) GetInventory(tenantId uint) ([]*map[string]interface{}, error) {
-	inventory, err := service.repo.GetInventory(tenantId)
+func (service *ProductService) GetInventory(
+	ctx *gin.Context,
+	tenantId uint,
+) ([]*map[string]interface{}, error) {
+	inventory, err := service.repo.GetInventory(ctx, tenantId)
 	if err != nil {
 		return nil, err
 	}

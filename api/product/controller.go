@@ -4,6 +4,7 @@ import (
 	"errors"
 	"net/http"
 	"strings"
+	"sync"
 
 	"github.com/gin-gonic/gin"
 	"github.com/vatsal-omniful/onboarding-ims/models"
@@ -12,6 +13,21 @@ import (
 type ProductController struct {
 	ser  *ProductService
 	repo *ProductRepository
+}
+
+var (
+	ctrlOnce sync.Once
+	ctrl     *ProductController
+)
+
+func NewProductController(ser *ProductService, repo *ProductRepository) *ProductController {
+	ctrlOnce.Do(func() {
+		ctrl = &ProductController{
+			ser:  ser,
+			repo: repo,
+		}
+	})
+	return ctrl
 }
 
 func (ctrl *ProductController) validateCreateProductRequest(product *models.Product) error {
@@ -46,7 +62,7 @@ func (ctrl *ProductController) CreateProduct(ctx *gin.Context) {
 		return
 	}
 
-	if err := ctrl.repo.CreateProduct(&product); err != nil {
+	if err := ctrl.repo.CreateProduct(ctx, &product); err != nil {
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create product"})
 		return
 	}
@@ -62,7 +78,7 @@ func (ctrl *ProductController) GetProduct(ctx *gin.Context) {
 		return
 	}
 
-	product, err := ctrl.repo.GetProductBySkuID(skuId)
+	product, err := ctrl.repo.GetProductBySkuID(ctx, skuId)
 	if err != nil || product == nil {
 		ctx.JSON(http.StatusNotFound, gin.H{"error": "SKU ID not found"})
 		return
@@ -95,6 +111,7 @@ func (ctrl *ProductController) InflowProduct(ctx *gin.Context) {
 	tenantId, _ := ctx.Get("tenantId")
 
 	requestValidationErr := ctrl.ser.CheckValidityOfProductHub(
+		ctx,
 		inflow.ProductId,
 		inflow.HubId,
 		inflow.SellerId,
@@ -106,7 +123,7 @@ func (ctrl *ProductController) InflowProduct(ctx *gin.Context) {
 		return
 	}
 
-	if statusCode, err := ctrl.repo.UpsertProductInflow(&inflow); statusCode != http.StatusOK {
+	if statusCode, err := ctrl.repo.UpsertProductInflow(ctx, &inflow); statusCode != http.StatusOK {
 		ctx.JSON(statusCode, gin.H{"error": err.Error()})
 		return
 	}
@@ -131,7 +148,7 @@ func (ctrl *ProductController) FulfillOrderRequest(ctx *gin.Context) {
 		return
 	}
 
-	statusCode, err := ctrl.ser.FulfillOrderRequest(&order)
+	statusCode, err := ctrl.ser.FulfillOrderRequest(ctx, &order)
 	if err != nil {
 		ctx.JSON(statusCode, gin.H{"error": err.Error()})
 		return
@@ -154,7 +171,7 @@ func (ctrl *ProductController) GetProducts(ctx *gin.Context) {
 	if len(sku_codes) > 0 {
 		filter["sku_id"] = sku_codes
 	}
-	products, err := ctrl.ser.GetProducts(filter)
+	products, err := ctrl.ser.GetProducts(ctx, filter)
 	if err != nil {
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to retrieve products"})
 		return
@@ -169,7 +186,7 @@ func (ctrl *ProductController) GetProducts(ctx *gin.Context) {
 func (ctrl *ProductController) GetInventory(ctx *gin.Context) {
 	tenantId, _ := ctx.Get("tenantId")
 
-	inventory, err := ctrl.ser.GetInventory(tenantId.(uint))
+	inventory, err := ctrl.ser.GetInventory(ctx, tenantId.(uint))
 	if err != nil {
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to retrieve inventory"})
 		return

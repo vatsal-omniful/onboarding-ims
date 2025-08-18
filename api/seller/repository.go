@@ -1,11 +1,25 @@
 package seller
 
 import (
+	"sync"
+
 	"github.com/vatsal-omniful/onboarding-ims/database"
 	"github.com/vatsal-omniful/onboarding-ims/models"
 )
 
 type SellerRepository struct{}
+
+var (
+	repoOnce sync.Once
+	repo     *SellerRepository
+)
+
+func NewSellerRepository() *SellerRepository {
+	repoOnce.Do(func() {
+		repo = &SellerRepository{}
+	})
+	return repo
+}
 
 func (repo *SellerRepository) CreateSeller(seller *models.Seller) error {
 	return database.DB.Create(seller).Error

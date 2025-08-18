@@ -3,55 +3,84 @@ package product
 import (
 	"errors"
 	"net/http"
+	"sync"
 
+	"github.com/gin-gonic/gin"
+	"github.com/omniful/go_commons/db/sql/postgres"
 	"github.com/vatsal-omniful/onboarding-ims/database"
 	"github.com/vatsal-omniful/onboarding-ims/models"
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
 )
 
-type ProductRepository struct{}
-
-func (repo *ProductRepository) CreateProduct(product *models.Product) error {
-	return database.DB.Create(product).Error
+type ProductRepository struct {
+	db *postgres.DbCluster
 }
 
-func (repo *ProductRepository) GetProductBySkuID(skuId string) (*models.Product, error) {
+var (
+	repoOnce sync.Once
+	repo     *ProductRepository
+)
+
+func NewProductRepository(db *postgres.DbCluster) *ProductRepository {
+	repoOnce.Do(func() {
+		repo = &ProductRepository{db: db}
+	})
+	return repo
+}
+
+func (repo *ProductRepository) CreateProduct(ctx *gin.Context, product *models.Product) error {
+	return repo.db.GetMasterDB(ctx).Create(product).Error
+}
+
+func (repo *ProductRepository) GetProductBySkuID(
+	ctx *gin.Context,
+	skuId string,
+) (*models.Product, error) {
 	var product models.Product
-	if err := database.DB.Where("sku_id = ?", skuId).First(&product).Error; err != nil {
+	if err := repo.db.GetMasterDB(ctx).Where("sku_id = ?", skuId).First(&product).Error; err != nil {
 		return nil, err
 	}
 	return &product, nil
 }
 
-func (repo *ProductRepository) GetProductById(productId uint) (*models.Product, error) {
+func (repo *ProductRepository) GetProductById(
+	ctx *gin.Context,
+	productId uint,
+) (*models.Product, error) {
 	var product models.Product
-	if err := database.DB.Where("id = ?", productId).First(&product).Error; err != nil {
+	if err := repo.db.GetMasterDB(ctx).Where("id = ?", productId).First(&product).Error; err != nil {
 		return nil, err
 	}
 	return &product, nil
 }
 
-func (repo *ProductRepository) GetHubById(hubId uint) (*models.Hub, error) {
+func (repo *ProductRepository) GetHubById(ctx *gin.Context, hubId uint) (*models.Hub, error) {
 	var hub models.Hub
-	if err := database.DB.Where("id = ?", hubId).First(&hub).Error; err != nil {
+	if err := repo.db.GetMasterDB(ctx).Where("id = ?", hubId).First(&hub).Error; err != nil {
 		return nil, err
 	}
 	return &hub, nil
 }
 
-func (repo *ProductRepository) GetSellerById(sellerId uint) (*models.Seller, error) {
+func (repo *ProductRepository) GetSellerById(
+	ctx *gin.Context,
+	sellerId uint,
+) (*models.Seller, error) {
 	var seller models.Seller
-	if err := database.DB.Where("id = ?", sellerId).First(&seller).Error; err != nil {
+	if err := repo.db.GetMasterDB(ctx).Where("id = ?", sellerId).First(&seller).Error; err != nil {
 		return nil, err
 	}
 	return &seller, nil
 }
 
-func (repo *ProductRepository) UpsertProductInflow(productHub *ProductInflow) (int, error) {
+func (repo *ProductRepository) UpsertProductInflow(
+	ctx *gin.Context,
+	productHub *ProductInflow,
+) (int, error) {
 	var existingProductHub models.ProductHub
 
-	tx := database.DB.Begin()
+	tx := repo.db.GetMasterDB(ctx).Begin()
 	defer func() {
 		if r := recover(); r != nil {
 			tx.Rollback()
@@ -93,12 +122,13 @@ func (repo *ProductRepository) UpsertProductInflow(productHub *ProductInflow) (i
 }
 
 func (repo *ProductRepository) GetValidHubsForProduct(
+	ctx *gin.Context,
 	productId uint,
 	quantity uint,
 ) ([]uint, error) {
 	var hubs []uint
 
-	err := database.DB.Table("product_hubs").
+	err := repo.db.GetMasterDB(ctx).Table("product_hubs").
 		Joins("JOIN hubs ON product_hubs.hub_id = hubs.id").
 		Select("hub_id").
 		Where("product_id = ? AND quantity >= ? AND hubs.status = ?", productId, quantity, "active").
@@ -110,27 +140,31 @@ func (repo *ProductRepository) GetValidHubsForProduct(
 	return hubs, nil
 }
 
-func (repo *ProductRepository) UpdateProductHubQuantity(productId, hubId, quantity uint) error {
-	return database.DB.Model(&models.ProductHub{}).
+func (repo *ProductRepository) UpdateProductHubQuantity(
+	ctx *gin.Context,
+	productId, hubId, quantity uint,
+) error {
+	return repo.db.GetMasterDB(ctx).Model(&models.ProductHub{}).
 		Joins("JOIN hubs ON product_hubs.hub_id = hubs.id").
 		Where("hubs.status = ?", "active").
 		Where("product_id = ? AND hub_id = ? AND quantity >= ?", productId, hubId, quantity).
 		UpdateColumn("quantity", gorm.Expr("quantity - ?", quantity)).Error
 }
 
-func (repo *ProductRepository) GetAllProducts() ([]*models.Product, error) {
+func (repo *ProductRepository) GetAllProducts(ctx *gin.Context) ([]*models.Product, error) {
 	var products []*models.Product
-	if err := database.DB.Find(&products).Error; err != nil {
+	if err := repo.db.GetMasterDB(ctx).Find(&products).Error; err != nil {
 		return nil, err
 	}
 	return products, nil
 }
 
 func (repo *ProductRepository) GetProductsByFilters(
+	ctx *gin.Context,
 	filters map[string]interface{},
 ) ([]*models.Product, error) {
 	var products []*models.Product
-	query := database.DB.Model(&models.Product{})
+	query := repo.db.GetMasterDB(ctx).Model(&models.Product{})
 
 	for key, value := range filters {
 		if key != "sku_id" {
@@ -146,7 +180,10 @@ func (repo *ProductRepository) GetProductsByFilters(
 	return products, nil
 }
 
-func (repo *ProductRepository) GetInventory(tenantId uint) ([]map[string]any, error) {
+func (repo *ProductRepository) GetInventory(
+	ctx *gin.Context,
+	tenantId uint,
+) ([]map[string]any, error) {
 	var inventory []map[string]any
 	err := database.DB.Table("product_hubs").
 		Joins("JOIN products ON product_hubs.product_id = products.id").

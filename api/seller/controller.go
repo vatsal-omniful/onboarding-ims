@@ -2,6 +2,7 @@ package seller
 
 import (
 	"net/http"
+	"sync"
 
 	"github.com/gin-gonic/gin"
 	"github.com/vatsal-omniful/onboarding-ims/models"
@@ -9,6 +10,18 @@ import (
 
 type SellerController struct {
 	repo *SellerRepository
+}
+
+var (
+	ctrlOnce sync.Once
+	ctrl     *SellerController
+)
+
+func NewSellerController(repo *SellerRepository) *SellerController {
+	ctrlOnce.Do(func() {
+		ctrl = &SellerController{repo: repo}
+	})
+	return ctrl
 }
 
 func (ctrl *SellerController) CreateSeller(ctx *gin.Context) {

@@ -1,0 +1,29 @@
+server:
+  port: ":8081"
+
+cloudProvider:
+  name: "aws"
+  region: "eu-central-1"
+
+env: "staging"
+
+log:
+  level: "debug"
+  format: "json"
+  request: true
+  response: true
+  request_debug: true
+
+service:
+  name: "onboarding-ims"
+
+postgresql:
+  debugMode: true
+  database: "mydb"
+  maxOpenConns: 10
+  maxIdleConns: 2
+  master:
+    host: "localhost"
+    port: "5433"
+    username: "admin"
+    password: "admin"

@@ -1,17 +1,22 @@
 package routes
 
 import (
-	"github.com/gin-gonic/gin"
+	"context"
+
+	"github.com/omniful/go_commons/http"
 	"github.com/vatsal-omniful/onboarding-ims/api/product"
+	"github.com/vatsal-omniful/onboarding-ims/pkg/db/postgres"
 )
 
-func InternalRouter(router *gin.Engine) {
-	// Define internal routes here
-	internalGroup := router.Group("/internal")
-	productController := product.ProductController{}
+func InternalRoutes(ctx context.Context, server *http.Server) error {
+	productController, err := product.Wire(ctx, postgres.GetCluster().DbCluster)
+	if err != nil {
+		return err
+	}
 
-	productGroup := internalGroup.Group("/product")
+	productGroup := server.Group("/product")
 	{
 		productGroup.PATCH("/fulfillOrder", productController.FulfillOrderRequest)
 	}
+	return nil
 }

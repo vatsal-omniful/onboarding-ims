@@ -3,6 +3,7 @@ package hub
 import (
 	"errors"
 	"net/http"
+	"sync"
 
 	"github.com/gin-gonic/gin"
 	"github.com/vatsal-omniful/onboarding-ims/models"
@@ -10,6 +11,20 @@ import (
 
 type HubController struct {
 	rep *HubRepository
+}
+
+var (
+	ctrlOnce sync.Once
+	ctrl     *HubController
+)
+
+func NewHubController(rep *HubRepository) *HubController {
+	ctrlOnce.Do(func() {
+		ctrl = &HubController{
+			rep: rep,
+		}
+	})
+	return ctrl
 }
 
 func (c *HubController) validateHub(hub *models.Hub) error {
@@ -37,7 +52,7 @@ func (c *HubController) CreateHub(ctx *gin.Context) {
 		return
 	}
 
-	if err := c.rep.CreateHubRepo(&hub); err != nil {
+	if err := c.rep.CreateHubRepo(ctx, &hub); err != nil {
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
@@ -68,7 +83,7 @@ func (c *HubController) GetHub(ctx *gin.Context) {
 		return
 	}
 
-	hub, err := c.rep.GetHubById(hubId)
+	hub, err := c.rep.GetHubById(ctx, hubId)
 	if err != nil || hub == nil {
 		ctx.JSON(http.StatusNotFound, gin.H{"error": "Hub not found"})
 		return
