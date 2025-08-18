@@ -184,7 +184,7 @@ func (repo *ProductRepository) GetInventory(
 	tenantId uint,
 ) ([]map[string]any, error) {
 	var inventory []map[string]any
-``	err := repo.db.GetMasterDB(ctx).Table("product_hubs").
+	err := repo.db.GetMasterDB(ctx).Table("product_hubs").
 		Joins("JOIN products ON product_hubs.product_id = products.id").
 		Joins("JOIN hubs ON product_hubs.hub_id = hubs.id").
 		Joins("JOIN sellers ON product_hubs.seller_id = sellers.id").
