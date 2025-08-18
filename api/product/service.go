@@ -63,19 +63,19 @@ func (service *ProductService) selectValidHubsForProduct(hubs []uint) uint {
 func (service *ProductService) FulfillOrderRequest(
 	ctx *gin.Context,
 	orderRequest *OrderRequest,
-) (int, error) {
+) (int, uint, error) {
 	if orderRequest.Quantity <= 0 {
-		return http.StatusBadRequest, errors.New("quantity must be greater than 0")
+		return http.StatusBadRequest, 0, errors.New("quantity must be greater than 0")
 	}
 
 	product, err := service.repo.GetProductById(ctx, orderRequest.ProductId)
 	if err != nil {
-		return http.StatusBadRequest, errors.New("invalid product_id")
+		return http.StatusBadRequest, 0, errors.New("invalid product_id")
 	}
 
 	validHubs, err := service.repo.GetValidHubsForProduct(ctx, product.ID, orderRequest.Quantity)
 	if len(validHubs) == 0 || err != nil {
-		return http.StatusConflict, errors.New("no valid hubs available")
+		return http.StatusConflict, 0, errors.New("no valid hubs available")
 	}
 
 	selectedHubId := service.selectValidHubsForProduct(validHubs)
@@ -84,9 +84,9 @@ func (service *ProductService) FulfillOrderRequest(
 		ctx, orderRequest.ProductId, selectedHubId, orderRequest.Quantity,
 	)
 	if updateProductHubError != nil {
-		return http.StatusInternalServerError, errors.New("failed to fulfill order request")
+		return http.StatusInternalServerError, 0, errors.New("failed to fulfill order request")
 	}
-	return http.StatusOK, nil
+	return http.StatusOK, selectedHubId, nil
 }
 
 func (service *ProductService) GetProducts(
@@ -111,7 +111,7 @@ func (service *ProductService) GetProducts(
 func (service *ProductService) GetInventory(
 	ctx *gin.Context,
 	tenantId uint,
-) ([]*map[string]interface{}, error) {
+) ([]*map[string]any, error) {
 	inventory, err := service.repo.GetInventory(ctx, tenantId)
 	if err != nil {
 		return nil, err

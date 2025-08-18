@@ -62,7 +62,7 @@ func Initialize(ctx context.Context, server *http.Server) error {
 		)
 		productRoute.GET("/getAll", productController.GetProducts)
 		productRoute.GET(
-			"/getProductsByFilters",
+			"/getInventory",
 			middleware.TenantIDMiddleware(),
 			productController.GetInventory,
 		)

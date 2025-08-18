@@ -3,6 +3,7 @@ package product
 import (
 	"errors"
 	"net/http"
+	"strconv"
 	"strings"
 	"sync"
 
@@ -115,7 +116,7 @@ func (ctrl *ProductController) InflowProduct(ctx *gin.Context) {
 		inflow.ProductId,
 		inflow.HubId,
 		inflow.SellerId,
-		tenantId.(uint),
+		uint(tenantId.(float64)),
 	)
 
 	if requestValidationErr != nil {
@@ -148,16 +149,16 @@ func (ctrl *ProductController) FulfillOrderRequest(ctx *gin.Context) {
 		return
 	}
 
-	statusCode, err := ctrl.ser.FulfillOrderRequest(ctx, &order)
+	statusCode, hubId, err := ctrl.ser.FulfillOrderRequest(ctx, &order)
 	if err != nil {
 		ctx.JSON(statusCode, gin.H{"error": err.Error()})
 		return
 	}
-	ctx.JSON(statusCode, gin.H{"message": "Order fulfilled successfully"})
+	ctx.JSON(statusCode, gin.H{"message": "Order fulfilled successfully", "hub_id": hubId})
 }
 
 func (ctrl *ProductController) GetProducts(ctx *gin.Context) {
-	tenantId := ctx.Query("tenant_id")
+	tenantId := ctx.Query("tenantId")
 	sellerId := ctx.Query("seller_id")
 	sku_codes := ctx.QueryArray("sku_codes")
 
@@ -183,10 +184,33 @@ func (ctrl *ProductController) GetProducts(ctx *gin.Context) {
 	ctx.JSON(http.StatusOK, products)
 }
 
-func (ctrl *ProductController) GetInventory(ctx *gin.Context) {
+func (ctrl *ProductController) getTenantId(ctx *gin.Context) uint{
 	tenantId, _ := ctx.Get("tenantId")
 
-	inventory, err := ctrl.ser.GetInventory(ctx, tenantId.(uint))
+	switch v := tenantId.(type) {
+	case uint:
+		return v
+	case float64:
+		return uint(v)
+	case int:
+		return uint(v)
+	case int64:
+		return uint(v)
+	case string:
+		tenantIdUint, err := strconv.ParseUint(v, 10, 64)
+		if err != nil {
+			return 0
+		}
+		return uint(tenantIdUint)
+	default:
+		return 0
+	}
+}
+
+func (ctrl *ProductController) GetInventory(ctx *gin.Context) {
+	tenantId := ctrl.getTenantId(ctx)
+
+	inventory, err := ctrl.ser.GetInventory(ctx, tenantId)
 	if err != nil {
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to retrieve inventory"})
 		return

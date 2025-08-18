@@ -143,11 +143,20 @@ func (repo *ProductRepository) UpdateProductHubQuantity(
 	ctx *gin.Context,
 	productId, hubId, quantity uint,
 ) error {
-	return repo.db.GetMasterDB(ctx).Model(&models.ProductHub{}).
-		Joins("JOIN hubs ON product_hubs.hub_id = hubs.id").
-		Where("hubs.status = ?", "active").
+	db := repo.db.GetMasterDB(ctx)
+
+	result := db.Model(&models.ProductHub{}).
 		Where("product_id = ? AND hub_id = ? AND quantity >= ?", productId, hubId, quantity).
-		UpdateColumn("quantity", gorm.Expr("quantity - ?", quantity)).Error
+		Where("hub_id IN (SELECT id FROM hubs WHERE id = ? AND status = 'active')", hubId).
+		UpdateColumn("quantity", gorm.Expr("quantity - ?", quantity))
+
+	if result.Error != nil {
+		return result.Error
+	}
+	if result.RowsAffected == 0 {
+		return errors.New("no rows updated: insufficient quantity or inactive hub")
+	}
+	return nil
 }
 
 func (repo *ProductRepository) GetAllProducts(ctx *gin.Context) ([]*models.Product, error) {

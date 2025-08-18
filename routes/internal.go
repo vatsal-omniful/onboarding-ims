@@ -14,7 +14,9 @@ func InternalRoutes(ctx context.Context, server *http.Server) error {
 		return err
 	}
 
-	productGroup := server.Group("/product")
+	internalGroup := server.Group("/internal")
+
+	productGroup := internalGroup.Group("/product")
 	{
 		productGroup.PATCH("/fulfillOrder", productController.FulfillOrderRequest)
 	}

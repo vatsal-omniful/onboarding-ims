@@ -21,5 +21,4 @@ func Migrate() {
 	if err := masterDB.AutoMigrate(&models.Hub{}, &models.Product{}, &models.ProductHub{}, &models.Seller{}); err != nil {
 		log.Fatalf("unable to migrate: %v", err)
 	}
-	fmt.Println("Database migration completed.")
 }
