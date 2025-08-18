@@ -1,17 +1,24 @@
 package database
 
 import (
+	"context"
 	"fmt"
 	"log"
 
 	"github.com/vatsal-omniful/onboarding-ims/models"
-	"gorm.io/gorm"
+	"github.com/vatsal-omniful/onboarding-ims/pkg/db/postgres"
 )
 
-var DB *gorm.DB
-
 func Migrate() {
-	if err := DB.AutoMigrate(&models.Hub{}, &models.Product{}, &models.ProductHub{}, &models.Seller{}); err != nil {
+	db := postgres.GetCluster()
+	if db == nil {
+		log.Fatalf("Database cluster not initialized")
+	}
+
+	ctx := context.Background()
+	masterDB := db.GetMasterDB(ctx)
+
+	if err := masterDB.AutoMigrate(&models.Hub{}, &models.Product{}, &models.ProductHub{}, &models.Seller{}); err != nil {
 		log.Fatalf("unable to migrate: %v", err)
 	}
 	fmt.Println("Database migration completed.")

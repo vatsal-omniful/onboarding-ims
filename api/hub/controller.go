@@ -69,11 +69,9 @@ func (c *HubController) validateGetHubRequest(ctx *gin.Context) (string, uint, e
 	if hubId == "" {
 		return "", 0, errors.New("hub ID is required")
 	}
-	tenantId, exists := ctx.Get("tenantId")
-	if !exists || tenantId == "" {
-		return "", 0, errors.New("tenant ID is required")
-	}
-	return hubId, tenantId.(uint), nil
+	tenantId, _ := ctx.Get("tenantId")
+
+	return hubId, uint(tenantId.(float64)), nil
 }
 
 func (c *HubController) GetHub(ctx *gin.Context) {

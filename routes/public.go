@@ -37,15 +37,17 @@ func Initialize(ctx context.Context, server *http.Server) error {
 	publicRoute := server.Group(
 		"/public",
 		http.RequestLogMiddleware(loggingMiddlewareOptions),
+		// Enable for debugging
+		// middleware.RequestBodyLoggerMiddleware(), // Add custom request body logging
 	)
 
 	hubRoute := publicRoute.Group("/hub", middleware.TenantIDMiddleware())
 	{
 		hubRoute.POST("/create", hubController.CreateHub)
-		hubRoute.GET("/", hubController.GetHub)
+		hubRoute.GET("/:id", hubController.GetHub)
 	}
 
-	productRoute := server.Group("/product")
+	productRoute := publicRoute.Group("/product")
 	{
 		productRoute.POST(
 			"/create",
@@ -71,7 +73,7 @@ func Initialize(ctx context.Context, server *http.Server) error {
 		return err
 	}
 
-	sellerRoute := server.Group("/seller", middleware.TenantIDMiddleware())
+	sellerRoute := publicRoute.Group("/seller", middleware.TenantIDMiddleware())
 	{
 		sellerRoute.POST("/create", sellerController.CreateSeller)
 		sellerRoute.GET("/:id", sellerController.GetSeller)

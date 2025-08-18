@@ -1,5 +1,5 @@
 server:
-  port: ":8081"
+  port: ":8080"
 
 cloudProvider:
   name: "aws"
@@ -24,6 +24,6 @@ postgresql:
   maxIdleConns: 2
   master:
     host: "localhost"
-    port: "5433"
+    port: "5432"
     username: "admin"
     password: "admin"

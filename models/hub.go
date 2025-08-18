@@ -8,5 +8,5 @@ type Hub struct {
 	Description string         `json:"description" bson:"description"`
 	Location    datatypes.JSON `json:"location"    bson:"location"    bind:"required"`
 	Status      string         `json:"status"      bson:"status"      bind:"required"`
-	TenantId    uint           `json:"tenant_id"   bson:"tenant_id"   bind:"required"`
+	TenantId    uint           `json:"tenantId"    bson:"tenantId"    bind:"required"`
 }
